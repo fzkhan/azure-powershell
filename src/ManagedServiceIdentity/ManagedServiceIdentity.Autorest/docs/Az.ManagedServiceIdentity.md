@@ -1,6 +1,6 @@
 ---
 Module Name: Az.ManagedServiceIdentity
-Module Guid: 07ea637c-d665-40b4-9ced-fc0bdd913dde
+Module Guid: 4eed0468-9c3a-40ab-afaf-b92e8fc659ea
 Download Help Link: https://learn.microsoft.com/powershell/module/az.managedserviceidentity
 Help Version: 1.0.0.0
 Locale: en-US
