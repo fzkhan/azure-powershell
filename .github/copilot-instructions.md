@@ -1,271 +1,251 @@
-# Azure PowerShell Repository
+# GitHub Copilot Custom Instructions for Az-PowerShell
 
-Azure PowerShell is a collection of 200+ PowerShell modules for managing Azure resources. The repository contains modules with two types of projects: SDK-based projects and AutoRest-generated projects, all built using .NET and MSBuild.
+## Project Overview
+Az-PowerShell is a set of cmdlets for managing Azure resources directly from PowerShell. It provides a comprehensive and consistent interface for interacting with Azure services, enabling automation and scripting of cloud operations.
 
-## Architecture Overview
+The user will primarily work with the `Az.DataTransfer` module, which is used for managing data transfer pipelines and connections within Azure Data Transfer services.
 
-Azure PowerShell consists of **two main development approaches for projects**:
+## User's Role
+The user is a developer working on the `Az.DataTransfer` module, focusing on enhancing functionality, fixing bugs, updating docs, and ensuring the module meets the needs of Azure users.
 
-1. **SDK-based projects** - Hand-written C# cmdlets with custom business logic
-2. **AutoRest-based projects** - Auto-generated from OpenAPI specs via AutoRest PowerShell (mostly newer Azure services)
+## Project Structure
+- **src/DataTransfer**: Root directory for the DataTransfer module.
+- **src/DataTransfer/DataTransfer.Autorest**: Contains the AutoRest-generated code for the `Az.DataTransfer` module.
+- **src/DataTransfer/DataTransfer.Autorest/custom**: Contains custom PowerShell scripts that extend or modify the generated cmdlets.
+- **src/DataTransfer/DataTransfer.Autorest/README.md**: Documentation for the `Az.DataTransfer` module, used by autorest to generate the module.
 
-Always check project type before making changes - SDK vs AutoRest projects have different development patterns.
+## API Specification
+The API specification for the `Az.DataTransfer` module is defined here: https://github.com/Azure/azure-rest-api-specs/blob/main/specification/azuredatatransfer/resource-manager/Microsoft.AzureDataTransfer/stable/2025-05-21/azuredatatransfer.json 
 
-### Modules vs Projects
-- **Module**: A complete PowerShell module (e.g., `Az.Compute`) that can consist of multiple projects
-- **Project**: Individual C# project within a module, developed with one approach (SDK-based OR AutoRest)
-- **Hybrid Module**: Contains both SDK-based and AutoRest projects (e.g., `Az.Resources` with both approaches)
+## How to Run Autorest and test
+To regenerate the `Az.DataTransfer` module using AutoRest, follow these steps:
+1. Run autorest in the `src/DataTransfer/DataTransfer.Autorest` directory:
+```bash
+autorest
+```
 
-Always reference these instructions first and fallback to search or bash commands only when you encounter unexpected information that does not match the info here.
+2. After running AutoRest, the module will be generated in the same directory.
 
-## Working Effectively
-
-### Prerequisites and Setup
-First-time setup requires these exact steps:
-- **CRITICAL**: Ensure you have network connectivity to Azure DevOps package feeds. Build failures with "Name or service not known" errors indicate firewall/connectivity issues that must be resolved before building.
-- Install .NET SDK 8.0+ and .NET Framework Dev Pack 4.7.2+: `dotnet --version` should show 8.0+
-- Install PowerShell 7+: `pwsh --version` should show 7.0+
-- Install platyPS module: `pwsh -c "Install-Module -Name platyPS -Force -Scope CurrentUser"`
-- Install PSScriptAnalyzer: `pwsh -c "Install-Module -Name PSScriptAnalyzer -Force -Scope CurrentUser"`
-- Set PowerShell execution policy: `pwsh -c "Set-ExecutionPolicy -ExecutionPolicy Unrestricted -Scope CurrentUser"`
-
-### Building the Repository
-**NEVER CANCEL** any build commands - they may take 45-60 minutes to complete.
-
-Core build commands (run from repository root):
-- Clean: `dotnet msbuild build.proj /t:Clean` -- takes ~15 seconds
-- Full build: `dotnet msbuild build.proj` -- takes 45-60 minutes. NEVER CANCEL. Set timeout to 90+ minutes.
-- Build specific module: `dotnet msbuild build.proj /p:Scope=Accounts` -- takes 15-30 minutes
-- Generate help: `dotnet msbuild build.proj /t:GenerateHelp` -- takes 10-15 minutes. NEVER CANCEL. Set timeout to 30+ minutes.
-- Static analysis: `dotnet msbuild build.proj /t:StaticAnalysis` -- takes 10-15 minutes. NEVER CANCEL. Set timeout to 30+ minutes.
-- Run tests: `dotnet msbuild build.proj /t:Test` -- takes 15+ minutes. NEVER CANCEL. Set timeout to 45+ minutes.
-
-Alternative PowerShell build commands:
-- Build single module: `pwsh -c "./tools/BuildScripts/BuildModules.ps1 -RepoRoot $(pwd) -Configuration Debug -TargetModule Accounts"` -- takes 5-15 minutes depending on module size
-
-### Testing
-**NEVER CANCEL** test commands - they can take 15+ minutes.
-
-Test execution patterns:
-- All tests: `dotnet msbuild build.proj /t:Test` -- takes 15+ minutes. NEVER CANCEL.
-- Core tests only: `dotnet msbuild build.proj /t:Test /p:TestsToRun=Core` -- tests Compute, Network, Resources, Sql, Websites modules
-- Individual module tests: Navigate to module test directory and run `dotnet test` or use Pester
-
-Test framework uses .NET 6 target framework and Azure Test Framework for recording/playback of HTTP requests.
-
-### Manual Validation Scenarios
-**CRITICAL**: Always perform manual validation after making changes. Simply building is not sufficient.
-
-**Core validation steps:**
-1. Build succeeds: `dotnet msbuild build.proj /p:Scope=YourModule` 
-2. Static analysis passes: `dotnet msbuild build.proj /t:StaticAnalysis`  
-3. Help generation succeeds: `dotnet msbuild build.proj /t:GenerateHelp`
-4. Tests pass: Navigate to test directory and run tests for your module
-
-**Manual testing scenarios:**
-After building, always test real functionality:
+3. Build the module using:
 ```powershell
-# Import the built module
-Import-Module ./artifacts/Debug/Az.YourModule/Az.YourModule.psd1
-
-# Verify cmdlets are available  
-Get-Command -Module Az.YourModule
-
-# Test a basic cmdlet workflow (example for Compute module)
-# Get-AzVM -ResourceGroupName "test-rg" 
-# New-AzVM -Name "test-vm" -ResourceGroupName "test-rg" -Location "East US" -Image "Win2019Datacenter" -Credential (Get-Credential)
-
-# For AutoRest projects, test generated cmdlets
-# Get-AzQuota -SubscriptionId "your-subscription-id"
-
-# Verify help is working
-Get-Help Your-AzCmdlet -Examples
-
-# Test parameter validation and error handling
-Get-AzVM -InvalidParameterName "test"
+pwsh .\build-module.ps1
 ```
 
-**Required pre-commit validation workflow:**
-1. Clean and build your module: `dotnet msbuild build.proj /t:Clean; dotnet msbuild build.proj /p:Scope=YourModule`
-2. Run static analysis: `dotnet msbuild build.proj /t:StaticAnalysis` 
-3. Import and manually test your cmdlets using realistic scenarios
-4. Run your module's specific tests: `cd src/YourModule/YourModule.Test; dotnet test`
-5. Update ChangeLog.md files with your changes
-
-## Common Build Issues and Workarounds
-
-### Network Connectivity Issues
-**CRITICAL**: If you see "Failed to download package" or "Name or service not known" errors:
-- This indicates firewall/proxy issues blocking access to Azure DevOps package feeds
-- Affected URLs: `*.vsblob.vsassets.io`, `pkgs.dev.azure.com`
-- Workaround 1: Configure corporate proxy/firewall to allow these domains
-- Workaround 2: Use VPN or different network environment  
-- **DO NOT** attempt to modify NuGet.Config - this will break the build
-
-### Incomplete Builds
-If build appears to hang or shows no progress:
-- **DO NOT CANCEL** - builds can take 45+ minutes with periods of no visible progress
-- Monitor system resources - builds are CPU and network intensive
-- Check network connectivity if stuck on package restore
-- Builds may pause during package downloads or complex compilation steps
-
-### Module-Specific Issues
-- Help generation requires platyPS module to be installed and functioning
-- Static analysis requires PSScriptAnalyzer module  
-- Some projects depend on specific Azure SDK versions from Azure DevOps feeds
-- Missing ChangeLog.md updates will cause PR validation to fail
-
-### Build Artifacts Issues
-If you see errors like "Cannot find path '/artifacts/Debug'":
-- This means the build didn't complete successfully
-- Run a clean build: `dotnet msbuild build.proj /t:Clean; dotnet msbuild build.proj`
-- Check for network connectivity issues during package restore
-
-### PowerShell Module Import Issues
-If `Import-Module` fails after build:
-- Ensure the build completed successfully and artifacts exist in `/artifacts/Debug/`
-- Try restarting PowerShell session to clear any cached modules
-- Use `-Force` parameter: `Import-Module ./artifacts/Debug/Az.YourModule/Az.YourModule.psd1 -Force`
-
-## Repository Structure and Navigation
-
-### Key Directories
-- `/src/` - All modules, containing both SDK-based projects and AutoRest-based projects
-- `/generated/` - Pure generated code for AutoRest-based projects  
-- `/tools/` - Build scripts, static analysis, testing utilities
-- `/documentation/` - Developer guides, design guidelines, testing docs
-- `/artifacts/` - Build outputs (created during build process)
-
-### Project Types
-Two types of projects with different development approaches:
-
-**SDK-based projects** (in `/src/`):
-- Hand-written C# cmdlets using Azure .NET SDKs
-- Example: `/src/Accounts/`, `/src/Compute/`
-- Build using main repository build system
-- Follow patterns in `/documentation/development-docs/azure-powershell-developer-guide.md`
-
-**AutoRest-generated projects** (in `/generated/` and some `/src/`):
-- Generated from REST API specifications
-- Example: `/generated/Cdn/Cdn.Autorest/`
-- Have individual build scripts: `build-module.ps1`, `test-module.ps1`, `pack-module.ps1`
-- Follow patterns in individual module `how-to.md` files
-
-**Hybrid modules**: Some modules contain both SDK-based and AutoRest-based projects, requiring understanding of both approaches.
-
-### Important Files
-- `build.proj` - Main MSBuild file for entire repository
-- `NuGet.Config` - Package source configuration (DO NOT MODIFY)
-- `CONTRIBUTING.md` - Contribution guidelines and PR requirements
-- `ChangeLog.md` - Release notes (must be updated for changes)
-
-### Development Workflow Files
-- `/tools/BuildScripts/BuildModules.ps1` - Core module build automation
-- `/tools/GenerateHelp.ps1` - Help documentation generation
-- `/tools/StaticAnalysis/` - Code analysis and validation tools
-- `/tools/Test/` - Testing infrastructure and utilities
-
-## Typical Development Tasks
-
-### Adding a New Cmdlet
-1. Navigate to appropriate module directory in `/src/`
-2. Add cmdlet class following existing patterns
-3. Update module manifest (`.psd1`) if needed
-4. Build module: `dotnet msbuild build.proj /p:Scope=YourModule`
-5. Generate help: `dotnet msbuild build.proj /t:GenerateHelp`
-6. Add tests following patterns in `ModuleName.Test` directory
-7. Update `ChangeLog.md` with your changes
-
-### Individual Module Development
-For individual module work when you don't need to build the entire repository:
-
-**SDK-based projects** (in `/src/`):
-```bash
-# Build just your module (much faster than full repository build)
-dotnet msbuild build.proj /p:Scope=YourModule
-
-# Build with dependencies (recommended)
-dotnet msbuild build.proj /p:TargetModule=YourModule
+4. Run the module using:
+```powershell
+pwsh .\run-module.ps1
 ```
 
-**AutoRest projects** (in `/src/` and `/generated/`):
-```bash
-# Most AutoRest projects are built as part of the main build system
-dotnet msbuild build.proj /p:Scope=YourModule
+5. Test the module using:
+```powershell
+pwsh .\test-module.ps1 -Live
+``` 
 
-# Some generated projects have individual test scripts
-cd generated/YourModule/YourModule.Autorest
-./test-module.ps1 -Playback    # Run tests in playback mode
-./test-module.ps1 -Record      # Record new tests (requires Azure connection)
+In case of issues, run:
+```powershell
+autorest --reset
 ```
 
-**Module testing patterns:**
-```bash
-# Run tests for specific module 
-cd src/YourModule/YourModule.Test
-dotnet test
+## Updating Docs
+To update the documentation for the `Az.DataTransfer` module, follow these steps:
 
-# For Pester-based tests
-cd src/YourModule/YourModule.Test  
-pwsh -c "Invoke-Pester"
+Update the docs by updating the examples in the `src/DataTransfer/DataTransfer.Autorest/examples` directory. Next time, the examples will be included in the generated module documentation.
+
+Do NOT touch the `src/DataTransfer/DataTransfer/help` directory directly. The help files are generated from the examples and cmdlet definitions in the `src/DataTransfer/DataTransfer.Autorest/examples` directory.
+
+Do NOT touch the `src/DataTransfer/DataTransfer.Autorest/docs` directory directly. The doc files are auto-generated.
+
+## Testing
+The tests reside in the `src/DataTransfer/DataTransfer.Autorest/tests` directory. To run the tests, use the following command:
+
+```powershell
+pwsh .\test-module.ps1 -Live
 ```
 
-### Running Specific Module Tests
-1. Navigate to module test directory: `cd src/YourModule/YourModule.Test`
-2. Set up test environment (see `/documentation/testing-docs/using-azure-test-framework.md`)
-3. Run tests: `dotnet test` or use PowerShell/Pester patterns
-4. Record new tests in "Record" mode, run existing tests in "Playback" mode
+There are Record and Playback modes as well.
 
-### Pre-commit Validation
-Always run before submitting PR:
-1. `dotnet msbuild build.proj /t:Clean`
-2. `dotnet msbuild build.proj /p:Scope=YourModule` -- wait for completion, 15-30 minutes
-3. `dotnet msbuild build.proj /t:StaticAnalysis` -- wait for completion, 10-15 minutes  
-4. Test your specific changes manually by importing and using the cmdlets
-5. Update ChangeLog.md with your changes
+- While creating tests, use the test directory.
+- Make sure tests are idempotent
+- Cleanup any resources inside the test itself if possible
+- Do not ever try to delete the pipeline, we do not have permissions
+- Do not try to create Recording files, they are created in Record mode while running tests
+- Check resources defined in `env.json` for naming conventions and use them in tests
 
-## Timing Expectations
-**CRITICAL**: All timing estimates include buffers. NEVER CANCEL commands before these timeouts:
+## Other instructions
+- Always check that we are using Microsoft.AzureDataTransfer as the resource provider (in comments, cmdlets, docs etc.). If not, print a warning message in the chat.
+- Remove any references to ResourceGroups, Pipelines etc from the comments/Docs/code. Use generic terms like "ResourceGroup01", "Pipeline01" etc.
+- Always add tests for `-AsJob`, `-NoWait` and similar parameters in the cmdlets.
+- Make sure the test resources are cleaned up after the tests run.
+- Make sure the resources in tests are created in a consistent manner, using the same naming conventions as defined in `env.json`.
 
-| Command | Expected Time | Timeout Setting |
-|---------|---------------|-----------------|
-| Clean build | 15 seconds | 60 seconds |
-| Full repository build | 45-60 minutes | 90 minutes |
-| Single module build | 15-30 minutes | 45 minutes |
-| Help generation | 10-15 minutes | 30 minutes |
-| Static analysis | 10-15 minutes | 30 minutes |  
-| Test execution | 15+ minutes | 45 minutes |
+# Cmdlet Best Practices
 
-**NEVER CANCEL** any build or test command before the timeout period. Builds may show no progress for extended periods while downloading packages or compiling.
+## Output Type
 
-## Files to Always Update
-- **ChangeLog.md** - Add entry under "## Upcoming Release" section
-- **Module-specific ChangeLog.md** - Located at `src/YourModule/YourModule/ChangeLog.md`
-- **Help documentation** - Regenerate using help generation commands
-- **Tests** - Add or update tests for new functionality
+Specified by the `OutputType` attribute, this piece of metadata lets the user know what the type of the object returned by the cmdlet is (found in the **Outputs** section of a cmdlet's help content). The type specified here should always be a single element and not an enumeration of elements (_e.g._, `PSVirtualMachine` instead of `List<PSVirtualMachine>`).
 
-## Common Command Reference
-```bash
-# Repository setup
-dotnet --version                    # Check .NET version (need 8.0+)
-pwsh --version                     # Check PowerShell version (need 7.0+)
+### Valid Output Types
 
-# Build commands  
-dotnet msbuild build.proj /t:Clean                    # Clean build
-dotnet msbuild build.proj                             # Full build (45-60 min)
-dotnet msbuild build.proj /p:Scope=ModuleName         # Build specific module
-dotnet msbuild build.proj /t:GenerateHelp             # Generate help (10-15 min)  
-dotnet msbuild build.proj /t:StaticAnalysis           # Run static analysis (10-15 min)
-dotnet msbuild build.proj /t:Test                     # Run tests (15+ min)
+If the cmdlet returns an object, the type of the object returned must be defined; the output type for a cmdlet should _never_ be `object`, `PSObject`, `PSCustomObject` or the like. Returning these types of objects makes it difficult for the user to anticipate what properties will be found on the object returned from the cmdlet, as well as makes it impossible for the breaking change analyzer to detect if a breaking change was introduced to the cmdlet as the type is not defined.
 
-# Module development
-pwsh -c "Import-Module ./artifacts/Debug/Az.ModuleName/Az.ModuleName.psd1"
-pwsh -c "Get-Command -Module Az.ModuleName"
+In order to preserve proper piping scenarios, the output type for a cmdlet should _never_ be a `string`. If a cmdlet is expected to return a `string`, the suggestion is to introduce a new type that encapsulates the `string` information as a property and return that object. The PowerShell language revolves around objects and passing them around cmdlets; returning `string` objects can introduce inconsistencies in the piping experience for users.
 
-# Individual module builds (for AutoRest projects)
-cd generated/ModuleName/ModuleName.Autorest
-./build-module.ps1                 # If available
-./test-module.ps1                  # If available
+### Returning Wrapped SDK Types
+
+In most cases, cmdlets will be returning an object corresponding to a resource that a user is performing an action on. Rather than returning the .NET SDK type for that resource (exposing .NET SDK types in PowerShell cmdlets is _strongly_ discouraged), we suggest creating a new class that wraps this .NET SDK type, allowing for breaking changes in the underlying type while avoiding breaking changes in the PowerShell type.
+
+For example, the `Get-AzVM` cmdlet uses the .NET SDK to retrieve objects of the `VirtualMachine` type, but a new class, `PSVirtualMachine`, was created to wrap the type from the .NET SDK, and is returned by the cmdlet. If, in the future, the `VirtualMachine` type in the .NET SDK has a property removed, that property can still be maintained in PowerShell by adding it to the `PSVirtualMachine` type and recreating the value, thus avoiding a breaking change in the corresponding cmdlet(s).
+
+### Returning No Output
+
+In the case where your cmdlet doesn't return any output (_e.g._, deleting, starting, stopping a resource), the cmdlet should implement the `-PassThru` parameter and the `OutputType` should be set to `bool`. The `-PassThru` parameter is a `SwitchParameter` set by the user to signal that they would like to receive output from a cmdlet which does not return anything. If the `-PassThru` parameter is provided, you should return the value `true` so the user is made aware that the operation was successful. If the operation was unsuccessful, then the cmdlet should throw an exception.
+
+From the [_Strongly Encouraged Development Guidelines_](https://learn.microsoft.com/en-us/powershell/scripting/developer/cmdlet/strongly-encouraged-development-guidelines#support-the-passthru-parameter):
+
+> _By default, many cmdlets that modify the system, such as the `Stop-Process` cmdlet, act as "sinks" for objects and do not return a result. These cmdlet should implement the `-PassThru` parameter to force the cmdlet to return an object._
+
+The code below shows how this should look in a cmdlet:
+
+```cs
+[Cmdlet(...), OutputType(typeof(bool))]
+public class MySampleCmdlet : MyBaseCmdlet
+{
+    // other parameters omitted
+
+    [Parameter(Mandatory = false)]
+    public SwitchParameter PassThru { get; set; }
+
+    public override void ExecuteCmdlet()
+    {
+        // other code omitted
+
+        if (this.PassThru.IsPresent)
+        {
+            WriteObject(true);
+        }
+    }
+}
 ```
 
-Remember: This is a large, complex repository with extensive build times. Plan accordingly and never cancel long-running operations.
+### Enumerate Collection When WriteObject()
+
+When returning a collection of objects, the cmdlet should enumerate the collection. This ensures that the objects are written to the pipeline one at a time, which is the expected behavior for PowerShell cmdlets.
+
+There are two ways to accomplish this: (a) call `WriteObject()` for each object in the collection, or (b) use `WriteObject()` with the `enumerateCollection` parameter set to `true`. The `enumerateCollection` parameter is a boolean that, when true, will enumerate the collection and write each object to the pipeline.
+
+The code below shows how this should look in a cmdlet:
+
+```cs
+var resources = Client.ListResources();
+
+// option a: call WriteObject() for each object in the collection
+foreach (var resource in resources)
+{
+    WriteObject(resource);
+}
+
+// option b: use WriteObject() with the enumerateCollection parameter set to true
+WriteObject(resources, true);
+```
+
+## Output Format
+
+PowerShell supports several output formats, including `table`, `list`, and `wide`. The default output format for Azure PowerShell cmdlets is `table`, which is the most readable for displaying a list of resources. Here's an example:
+
+```powershell
+PS > Get-AzVM
+
+ResourceGroupName    Name       Location          VmSize  OsType            NIC
+-----------------    ----       --------          ------  ------            ---
+TEST1               test1         eastus Standard_DS1_v2 Windows          test1
+TEST1               test2         westus Standard_DS1_v2 Windows          test2
+TEST1               test3         eastus Standard_DS1_v2 Windows          test3
+TEST2               test4         westus Standard_DS1_v2 Windows          test4
+TEST2               test5         eastus Standard_DS1_v2 Windows          test5
+```
+
+The idea about table format is for users to be able to quickly scan the output and find the information they are looking for. To achieve this, follow the golden rule of thumb: **show only the MVPs (most valuable properties)**.
+
+It's obvious that important properties need to be displayed, but be careful not to overcrowd the output with too many properties. PowerShell console has a limited width, so if there are too many columns, the output may be truncated and lose the meaning of being quickly readable.
+
+A practical way of designing the table format is:
+
+1. List the properties from the most important to the least important.
+2. Take the most important properties until (a) the width of the console is filled or (b) the rest of the properties are not important enough to be displayed.
+
+## `ShouldProcess`
+
+If a cmdlet makes any changes to an object on the server (_e.g._, create, delete, update, start, stop a resource), the cmdlet should implement `ShouldProcess`. This property adds the `-WhatIf` and `-Confirm` parameters to the cmdlet:
+
+- `-WhatIf` is a `SwitchParameter` that, when provided by the user, doesn't execute the part of the cmdlet responsible for making the changes to the object, but rather displays a message alerting the user of the action that is to be performed on the object
+- `-Confirm` is a `SwitchParameter` that, when provided by the user, prompts the user for confirmation that they want to continue with the execution of the cmdlet.
+
+The code below shows how this should look in a cmdlet:
+
+```cs
+[Cmdlet(..., SupportsShouldProcess = true), OutputType(typeof(...))]
+public class MySampleCmdlet : MyBaseCmdlet
+{
+    // parameters omitted
+
+    public override void ExecuteCmdlet()
+    {
+        // other code omitted
+
+        if (ShouldProcess(targetResource, actionMessage))
+        {
+            // make the change
+        }
+    }
+}
+```
+
+More information about `ShouldProcess` can be found in the [_Should Process and Confirm Impact_](./should-process-confirm-impact.md) document.
+
+### When to Add the Force Parameter
+
+The `-Force` parameter is reserved for special scenarios where additional confirmation from the user is required. From the above document on [_Should Process and Confirm Impact_](./should-process-confirm-impact.md) document:
+
+> _Some cmdlets require additional confirmation. For example, if a cmdlet would destroy existing resources in some circumstances, the cmdlet might detect that condition and prompt the user to verify before continuing. Overwriting an existing resource during resource creation, overwriting a file when downloading data, deleting a resource that is currently in use, or deleting a container that contains additional resources are all example of this pattern. To implement additional confirmation, and allow scripts to opt out of additional prompts, the above pattern is enhanced with calls to `ShouldContinue()` and the `-Force` parameter._
+
+## `AsJob`
+
+All long running operations must implement the `-AsJob` parameter, which will allow the user to create jobs in the background. For more information about PowerShell jobs and the `-AsJob` parameter, read [this doc](https://learn.microsoft.com/en-us/powershell/azure/using-psjobs).
+
+To implement the `-AsJob` parameter, simply add the parameter to the end of the parameter list:
+
+````cs
+[Parameter(Mandatory = false, HelpMessage = "Run cmdlet in the background")]
+public SwitchParameter AsJob { get; set; }
+````
+
+Once you add the parameter, please manually test that the job is created and successfully completes when the parameter is specified.  Additionally, please ensure that the help files are updated with this parameter.
+
+To ensure that `-AsJob` is not broken in future changes, please add a test for this parameter. To update tests to include this parameter, use the following pattern:
+
+````powershell
+$job = Get-AzSubscription -AsJob
+$job | Wait-Job
+$subscriptions = $job | Receive-Job
+````
+
+To set a custom job name, please use [`SetBackgroupJobDescription`](https://github.com/Azure/azure-powershell-common/blob/main/src/Common/AzurePSCmdlet.cs#L810). The default job description is: "Long Running Operation for '{cmdlet name}' on resource '{resource name}'"
+
+## Required Parameter Sets
+
+In most Azure PowerShell cmdlets, there is a bare minimum of three parameter sets that need to be implemented.
+
+### Interactive Parameter Set
+
+This parameter set should be implemented by _every_ cmdlet - in most cases, the user provides the name of the resource that they are acting upon (`-Name`) and the resource group in which they are acting in (`-ResourceGroupName`).
+
+The interactive parameter set **will always be the default parameter set** for a cmdlet (specified by the `DefaultParameterSetName` property in the `Cmdlet` attribute). This means that when PowerShell is unable to determine which parameter set a user is in, it will default to the interactive parameter set and prompt the user to provide values for the missing mandatory parameters.
+
+### ResourceId Parameter Set
+
+This parameter set should be implemented by _every_ cmdlet - the user is able to provide a `-ResourceId` string or GUID from the Azure Portal, or from one of the generic resources cmdlets (more information about this scenario can be found in the [`piping-best-practices.md`](./piping-best-practices.md#using-the--resourceid-parameter) document), and act upon the given resource associated with the id. The typical `-Name` and `-ResourceGroupName` parameters are replaced by a single `-ResourceId` parameter of type string.
+
+### InputObject Parameter Set
+
+This parameter should be implemented by _most_ cmdlets - the user is able to take the object returned from the `Get`, `New`, or `Set` cmdlets (or other cmdlets that return the common resource) and provide it to the `-InputObject` parameter for a cmdlet that acts upon the same resource (more information about this scenario can be found in the [`piping-best-practices.md`](./piping-best-practices.md#using-the--inputobject-parameter) document). The typical `-Name` and `-ResourceGroupName` parameters are retrieved from the `-InputObject` that the user is passing through.
+
